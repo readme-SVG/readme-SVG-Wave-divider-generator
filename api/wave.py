@@ -1,0 +1,285 @@
+import math
+import random
+
+
+def _esc(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&#39;")
+    )
+
+
+def _hex_to_rgb(hex_color: str) -> tuple:
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) == 3:
+        hex_color = "".join(c * 2 for c in hex_color)
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return r, g, b
+
+
+def _build_wave_path(
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    phase: float = 0.0,
+    points: int = 100,
+    fill_bottom: bool = True,
+    y_offset: float = 0.5,
+) -> str:
+    """
+    Build an SVG path for a sine-based wave.
+    y_offset: 0=top, 0.5=middle, 1=bottom of the SVG height
+    """
+    mid_y = height * y_offset
+
+    coords = []
+    for i in range(points + 1):
+        x = (i / points) * width
+        y = mid_y + amplitude * math.sin(2 * math.pi * frequency * (i / points) + phase)
+        coords.append((x, y))
+
+    path = f"M {coords[0][0]:.2f} {coords[0][1]:.2f} "
+    path += " ".join(f"L {x:.2f} {y:.2f}" for x, y in coords[1:])
+
+    if fill_bottom:
+        path += f" L {width} {height} L 0 {height} Z"
+    else:
+        path += f" L {width} 0 L 0 0 Z"
+
+    return path
+
+
+def _build_smooth_wave_path(
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    phase: float = 0.0,
+    points: int = 60,
+    fill_bottom: bool = True,
+    y_offset: float = 0.5,
+) -> str:
+    """Smooth cubic bezier wave path."""
+    mid_y = height * y_offset
+    step = width / points
+
+    coords = []
+    for i in range(points + 1):
+        x = i * step
+        y = mid_y + amplitude * math.sin(2 * math.pi * frequency * (i / points) + phase)
+        coords.append((x, y))
+
+    path = f"M {coords[0][0]:.2f} {coords[0][1]:.2f} "
+    for i in range(1, len(coords)):
+        x0, y0 = coords[i - 1]
+        x1, y1 = coords[i]
+        cx = (x0 + x1) / 2
+        path += f"C {cx:.2f} {y0:.2f} {cx:.2f} {y1:.2f} {x1:.2f} {y1:.2f} "
+
+    if fill_bottom:
+        path += f"L {width} {height} L 0 {height} Z"
+    else:
+        path += f"L {width} 0 L 0 0 Z"
+
+    return path
+
+
+def _build_zigzag_path(
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    fill_bottom: bool = True,
+    y_offset: float = 0.5,
+) -> str:
+    mid_y = height * y_offset
+    peaks = max(2, int(frequency * 12))
+    step = width / peaks
+
+    points = []
+    for i in range(peaks + 1):
+        x = i * step
+        y = mid_y + (amplitude if i % 2 == 0 else -amplitude)
+        points.append((x, y))
+
+    path = f"M {points[0][0]:.2f} {points[0][1]:.2f} "
+    path += " ".join(f"L {x:.2f} {y:.2f}" for x, y in points[1:])
+    if fill_bottom:
+        path += f" L {width} {height} L 0 {height} Z"
+    else:
+        path += f" L {width} 0 L 0 0 Z"
+    return path
+
+
+def _build_bump_path(
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    fill_bottom: bool = True,
+    y_offset: float = 0.5,
+    inverted: bool = False,
+) -> str:
+    mid_y = height * y_offset
+    bumps = max(1, int(frequency * 6))
+    bw = width / bumps
+
+    if inverted:
+        mid_y = height * y_offset
+
+    path = f"M 0 {mid_y:.2f} "
+    for i in range(bumps):
+        x0 = i * bw
+        x1 = x0 + bw / 2
+        x2 = x0 + bw
+        cy = mid_y - amplitude if not inverted else mid_y + amplitude
+        path += f"C {x0:.2f} {mid_y:.2f} {x1 - bw * 0.1:.2f} {cy:.2f} {x1:.2f} {cy:.2f} "
+        path += f"C {x1 + bw * 0.1:.2f} {cy:.2f} {x2:.2f} {mid_y:.2f} {x2:.2f} {mid_y:.2f} "
+
+    if fill_bottom:
+        path += f"L {width} {height} L 0 {height} Z"
+    else:
+        path += f"L {width} 0 L 0 0 Z"
+    return path
+
+
+def generate_wave_svg(
+    wave_type: str = "sine",
+    width: int = 1200,
+    height: int = 80,
+    color_top: str = "#0d1117",
+    color_bottom: str = "#161b22",
+    amplitude: float = 20.0,
+    frequency: float = 1.0,
+    layers: int = 1,
+    flip: bool = False,
+    gradient: bool = False,
+    opacity: float = 1.0,
+    mirror: bool = False,
+    smooth: bool = True,
+) -> str:
+    """
+    Generate an SVG wave divider.
+
+    wave_type: sine | smooth | zigzag | bump | triangle
+    """
+    amplitude = min(max(amplitude, 1), height * 0.45)
+    frequency = min(max(frequency, 0.5), 8.0)
+    layers = min(max(layers, 1), 3)
+    opacity = min(max(opacity, 0.1), 1.0)
+
+    r1, g1, b1 = _hex_to_rgb(color_top)
+    r2, g2, b2 = _hex_to_rgb(color_bottom)
+
+    defs = ""
+    grad_id = "wg"
+    if gradient:
+        defs = f"""
+  <defs>
+    <linearGradient id="{grad_id}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="{_esc(color_top)}"/>
+      <stop offset="100%" stop-color="{_esc(color_bottom)}"/>
+    </linearGradient>
+  </defs>"""
+        fill_color = f"url(#{grad_id})"
+    else:
+        fill_color = _esc(color_bottom)
+
+    paths_svg = ""
+
+    for layer_idx in range(layers):
+        frac = layer_idx / max(layers, 1)
+        phase_offset = frac * math.pi * 0.8
+        amp_scale = 1.0 - frac * 0.35
+        layer_amp = amplitude * amp_scale
+        layer_opacity = opacity * (1.0 - frac * 0.35) if layers > 1 else opacity
+
+        # interpolated color for multi-layer
+        if layers > 1 and not gradient:
+            t = layer_idx / (layers - 1) if layers > 1 else 0
+            lr = int(r2 + (r1 - r2) * (1 - t))
+            lg = int(g2 + (g1 - g2) * (1 - t))
+            lb = int(b2 + (b1 - b2) * (1 - t))
+            layer_color = f"rgb({lr},{lg},{lb})"
+        else:
+            layer_color = fill_color
+
+        fill_bottom_flag = not flip
+
+        if wave_type == "sine":
+            path_d = _build_wave_path(
+                width, height, layer_amp, frequency,
+                phase=phase_offset,
+                fill_bottom=fill_bottom_flag,
+                y_offset=0.5,
+            )
+        elif wave_type == "smooth":
+            path_d = _build_smooth_wave_path(
+                width, height, layer_amp, frequency,
+                phase=phase_offset,
+                fill_bottom=fill_bottom_flag,
+                y_offset=0.5,
+            )
+        elif wave_type == "zigzag":
+            path_d = _build_zigzag_path(
+                width, height, layer_amp, frequency,
+                fill_bottom=fill_bottom_flag,
+                y_offset=0.5,
+            )
+        elif wave_type == "bump":
+            path_d = _build_bump_path(
+                width, height, layer_amp, frequency,
+                fill_bottom=fill_bottom_flag,
+                y_offset=0.5,
+                inverted=flip,
+            )
+        elif wave_type == "triangle":
+            path_d = _build_zigzag_path(
+                width, height, layer_amp, frequency * 0.7,
+                fill_bottom=fill_bottom_flag,
+                y_offset=0.5,
+            )
+        else:
+            path_d = _build_smooth_wave_path(
+                width, height, layer_amp, frequency,
+                phase=phase_offset,
+                fill_bottom=fill_bottom_flag,
+                y_offset=0.5,
+            )
+
+        paths_svg += f'  <path d="{path_d}" fill="{layer_color}" fill-opacity="{layer_opacity:.2f}"/>\n'
+
+    # Mirror layer
+    if mirror:
+        if wave_type in ("sine",):
+            mirror_path = _build_wave_path(
+                width, height, amplitude, frequency,
+                phase=math.pi,
+                fill_bottom=not flip,
+                y_offset=0.5,
+            )
+        else:
+            mirror_path = _build_smooth_wave_path(
+                width, height, amplitude, frequency,
+                phase=math.pi,
+                fill_bottom=not flip,
+                y_offset=0.5,
+            )
+        paths_svg += f'  <path d="{mirror_path}" fill="{fill_color}" fill-opacity="{opacity * 0.4:.2f}"/>\n'
+
+    transform = f' transform="scale(1,-1) translate(0,-{height})"' if flip else ""
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 {width} {height}" width="{width}" height="{height}"
+     preserveAspectRatio="none"
+     role="img" aria-label="Wave divider">
+{defs}
+  <g{transform}>
+{paths_svg}  </g>
+</svg>"""
