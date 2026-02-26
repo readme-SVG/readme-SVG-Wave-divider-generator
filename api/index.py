@@ -1,8 +1,8 @@
 import os
 import sys
 
-# Vercel runs this file directly — relative imports don't work.
-# Add the api/ directory to path so `import wavegen` finds wavegen.py
+# Vercel executes this file directly, so relative imports are not available.
+# Add the api directory to sys.path so importing wavegen works.
 sys.path.insert(0, os.path.dirname(__file__))
 
 from flask import Flask, Response, request
@@ -17,6 +17,22 @@ def index():
     with open(os.path.abspath(html_path), "r", encoding="utf-8") as f:
         content = f.read()
     return Response(content, mimetype="text/html")
+
+
+@app.route("/styles.css")
+def styles():
+    css_path = os.path.join(os.path.dirname(__file__), "..", "styles.css")
+    with open(os.path.abspath(css_path), "r", encoding="utf-8") as f:
+        content = f.read()
+    return Response(content, mimetype="text/css")
+
+
+@app.route("/app.js")
+def app_js():
+    js_path = os.path.join(os.path.dirname(__file__), "..", "app.js")
+    with open(os.path.abspath(js_path), "r", encoding="utf-8") as f:
+        content = f.read()
+    return Response(content, mimetype="application/javascript")
 
 
 @app.route("/wave")
