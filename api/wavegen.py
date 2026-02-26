@@ -149,6 +149,35 @@ def _build_bump_path(
     return path
 
 
+def _build_animated_wave_values(
+    builder,
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    fill_bottom: bool,
+    base_phase: float,
+    frame_count: int = 5,
+) -> str:
+    """Build semicolon-separated animated path values for a wave-like morph."""
+    values = []
+    for frame in range(frame_count):
+        # full cycle split across N-1 steps; last frame equals first for seamless loop
+        phase = base_phase + (2 * math.pi * frame / (frame_count - 1))
+        values.append(
+            builder(
+                width,
+                height,
+                amplitude,
+                frequency,
+                phase=phase,
+                fill_bottom=fill_bottom,
+                y_offset=0.5,
+            )
+        )
+    return ";".join(values)
+
+
 def generate_wave_svg(
     wave_type: str = "sine",
     width: int = 1200,
@@ -259,12 +288,28 @@ def generate_wave_svg(
         animation_svg = ""
         if animate:
             layer_duration = speed + layer_idx * 1.1
-            layer_shift = width * (0.02 + layer_idx * 0.01)
-            animation_svg = (
-                f'<animateTransform attributeName="transform" type="translate" '
-                f'values="0 0; {-layer_shift:.2f} 0; 0 0" dur="{layer_duration:.2f}s" '
-                f'repeatCount="indefinite"/>'
-            )
+            if wave_type in ("sine", "smooth"):
+                builder = _build_wave_path if wave_type == "sine" else _build_smooth_wave_path
+                anim_values = _build_animated_wave_values(
+                    builder,
+                    width,
+                    height,
+                    layer_amp,
+                    frequency,
+                    fill_bottom_flag,
+                    phase_offset,
+                )
+                animation_svg = (
+                    f'<animate attributeName="d" values="{anim_values}" '
+                    f'dur="{layer_duration:.2f}s" repeatCount="indefinite"/>'
+                )
+            else:
+                layer_shift = width * (0.02 + layer_idx * 0.01)
+                animation_svg = (
+                    f'<animateTransform attributeName="transform" type="translate" '
+                    f'values="0 0; {-layer_shift:.2f} 0; 0 0" dur="{layer_duration:.2f}s" '
+                    f'repeatCount="indefinite"/>'
+                )
 
         paths_svg += (
             f'  <path d="{path_d}" fill="{layer_color}" fill-opacity="{layer_opacity:.2f}">'
@@ -289,11 +334,27 @@ def generate_wave_svg(
             )
         mirror_anim = ""
         if animate:
-            mirror_anim = (
-                f'<animateTransform attributeName="transform" type="translate" '
-                f'values="0 0; {width * 0.03:.2f} 0; 0 0" dur="{speed + 1.5:.2f}s" '
-                f'repeatCount="indefinite"/>'
-            )
+            if wave_type in ("sine", "smooth"):
+                builder = _build_wave_path if wave_type == "sine" else _build_smooth_wave_path
+                mirror_values = _build_animated_wave_values(
+                    builder,
+                    width,
+                    height,
+                    amplitude,
+                    frequency,
+                    not flip,
+                    math.pi,
+                )
+                mirror_anim = (
+                    f'<animate attributeName="d" values="{mirror_values}" '
+                    f'dur="{speed + 1.5:.2f}s" repeatCount="indefinite"/>'
+                )
+            else:
+                mirror_anim = (
+                    f'<animateTransform attributeName="transform" type="translate" '
+                    f'values="0 0; {width * 0.03:.2f} 0; 0 0" dur="{speed + 1.5:.2f}s" '
+                    f'repeatCount="indefinite"/>'
+                )
         paths_svg += (
             f'  <path d="{mirror_path}" fill="{fill_color}" fill-opacity="{opacity * 0.4:.2f}">'
             f'{mirror_anim}</path>\n'
