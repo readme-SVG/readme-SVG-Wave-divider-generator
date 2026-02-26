@@ -423,6 +423,14 @@
       </div>
 
       <div class="ctrl">
+        <label>Wave Position</label>
+        <select id="position">
+          <option value="bottom" selected>Bottom</option>
+          <option value="top">Top (Upside Down)</option>
+        </select>
+      </div>
+
+      <div class="ctrl">
         <label>Width (px)</label>
         <input type="number" id="width" value="1200" min="200" max="2400" step="100"/>
       </div>
@@ -546,13 +554,17 @@
     debTimer = setTimeout(generate, 300);
   }
 
-  ['type','width','height','amplitude','frequency','layers','opacity','speed'].forEach(id => {
+  ['type','position','width','height','amplitude','frequency','layers','opacity','speed'].forEach(id => {
     document.getElementById(id).addEventListener('change', debounce);
     document.getElementById(id).addEventListener('input', debounce);
   });
 
   // ─── Generate ────────────────────────────────────────
   async function generate() {
+    const isTopPosition = document.getElementById('position').value === 'top';
+    flags.flip = isTopPosition;
+    document.getElementById('toggle-flip').classList.toggle('on', flags.flip);
+
     const params = new URLSearchParams({
       type:         document.getElementById('type').value,
       width:        document.getElementById('width').value,
@@ -676,6 +688,7 @@
 
   function applyPreset(p) {
     document.getElementById('type').value = p.type;
+    document.getElementById('position').value = p.flip ? 'top' : 'bottom';
     document.getElementById('amplitude').value = p.amp;
     document.getElementById('frequency').value = p.freq;
     document.getElementById('layers').value = p.layers;
