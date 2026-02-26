@@ -178,6 +178,36 @@ def _build_animated_wave_values(
     return ";".join(values)
 
 
+def _build_animated_amplitude_values(
+    builder,
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    fill_bottom: bool,
+    y_offset: float = 0.5,
+    frame_count: int = 5,
+    **kwargs,
+) -> str:
+    """Build animated path values by pulsating amplitude (for non-phase wave types)."""
+    values = []
+    for frame in range(frame_count):
+        phase = 2 * math.pi * frame / (frame_count - 1)
+        amp = max(1.0, amplitude * (0.72 + 0.28 * (math.sin(phase) + 1) / 2))
+        values.append(
+            builder(
+                width,
+                height,
+                amp,
+                frequency,
+                fill_bottom=fill_bottom,
+                y_offset=y_offset,
+                **kwargs,
+            )
+        )
+    return ";".join(values)
+
+
 def generate_wave_svg(
     wave_type: str = "sine",
     width: int = 1200,
@@ -303,6 +333,36 @@ def generate_wave_svg(
                     f'<animate attributeName="d" values="{anim_values}" '
                     f'dur="{layer_duration:.2f}s" repeatCount="indefinite"/>'
                 )
+            elif wave_type == "zigzag":
+                anim_values = _build_animated_amplitude_values(
+                    _build_zigzag_path,
+                    width,
+                    height,
+                    layer_amp,
+                    frequency,
+                    fill_bottom_flag,
+                )
+                animation_svg = (
+                    f'<animate attributeName="d" values="{anim_values}" '
+                    f'dur="{layer_duration:.2f}s" repeatCount="indefinite"/>'
+                )
+            elif wave_type in ("bump", "triangle"):
+                bump_builder = _build_bump_path if wave_type == "bump" else _build_zigzag_path
+                bump_freq = frequency if wave_type == "bump" else frequency * 0.7
+                bump_kwargs = {"inverted": flip} if wave_type == "bump" else {}
+                anim_values = _build_animated_amplitude_values(
+                    bump_builder,
+                    width,
+                    height,
+                    layer_amp,
+                    bump_freq,
+                    fill_bottom_flag,
+                    **bump_kwargs,
+                )
+                animation_svg = (
+                    f'<animate attributeName="d" values="{anim_values}" '
+                    f'dur="{layer_duration:.2f}s" repeatCount="indefinite"/>'
+                )
             else:
                 layer_shift = width * (0.02 + layer_idx * 0.01)
                 animation_svg = (
@@ -344,6 +404,36 @@ def generate_wave_svg(
                     frequency,
                     not flip,
                     math.pi,
+                )
+                mirror_anim = (
+                    f'<animate attributeName="d" values="{mirror_values}" '
+                    f'dur="{speed + 1.5:.2f}s" repeatCount="indefinite"/>'
+                )
+            elif wave_type == "zigzag":
+                mirror_values = _build_animated_amplitude_values(
+                    _build_zigzag_path,
+                    width,
+                    height,
+                    amplitude,
+                    frequency,
+                    not flip,
+                )
+                mirror_anim = (
+                    f'<animate attributeName="d" values="{mirror_values}" '
+                    f'dur="{speed + 1.5:.2f}s" repeatCount="indefinite"/>'
+                )
+            elif wave_type in ("bump", "triangle"):
+                mirror_builder = _build_bump_path if wave_type == "bump" else _build_zigzag_path
+                mirror_freq = frequency if wave_type == "bump" else frequency * 0.7
+                mirror_kwargs = {"inverted": flip} if wave_type == "bump" else {}
+                mirror_values = _build_animated_amplitude_values(
+                    mirror_builder,
+                    width,
+                    height,
+                    amplitude,
+                    mirror_freq,
+                    not flip,
+                    **mirror_kwargs,
                 )
                 mirror_anim = (
                     f'<animate attributeName="d" values="{mirror_values}" '
