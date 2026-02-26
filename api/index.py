@@ -1,0 +1,59 @@
+import os
+import sys
+
+# Vercel runs this file directly — relative imports don't work.
+# Add the api/ directory to path so `import wavegen` finds wavegen.py
+sys.path.insert(0, os.path.dirname(__file__))
+
+from flask import Flask, Response, request
+from wavegen import generate_wave_svg
+
+app = Flask(__name__)
+
+
+@app.route("/")
+def index():
+    html_path = os.path.join(os.path.dirname(__file__), "..", "index.html")
+    with open(os.path.abspath(html_path), "r", encoding="utf-8") as f:
+        content = f.read()
+    return Response(content, mimetype="text/html")
+
+
+@app.route("/wave")
+def wave():
+    wave_type = request.args.get("type", "smooth").lower()
+    width     = min(max(int(request.args.get("width", 1200)), 200), 2400)
+    height    = min(max(int(request.args.get("height", 80)), 20), 200)
+    color_top = "#" + request.args.get("color_top", "0d1117").lstrip("#")
+    color_bot = "#" + request.args.get("color_bottom", "161b22").lstrip("#")
+    amplitude = min(max(float(request.args.get("amplitude", 20)), 1), 100)
+    frequency = min(max(float(request.args.get("frequency", 1)), 0.5), 8)
+    layers    = min(max(int(request.args.get("layers", 1)), 1), 3)
+    flip      = request.args.get("flip", "false").lower() == "true"
+    gradient  = request.args.get("gradient", "false").lower() == "true"
+    mirror    = request.args.get("mirror", "false").lower() == "true"
+    opacity   = min(max(float(request.args.get("opacity", 1)), 0.1), 1)
+
+    svg = generate_wave_svg(
+        wave_type=wave_type,
+        width=width,
+        height=height,
+        color_top=color_top,
+        color_bottom=color_bot,
+        amplitude=amplitude,
+        frequency=frequency,
+        layers=layers,
+        flip=flip,
+        gradient=gradient,
+        mirror=mirror,
+        opacity=opacity,
+    )
+
+    return Response(
+        svg,
+        mimetype="image/svg+xml",
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
