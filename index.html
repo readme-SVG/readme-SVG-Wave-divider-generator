@@ -128,30 +128,17 @@
       position: absolute; top: 12px; left: 16px; z-index: 2;
     }
 
-    .preview-top {
-      height: 60px;
-      background: var(--s2);
-      display: flex; align-items: center; justify-content: center;
-      font-family: var(--mono); font-size: 10px; color: var(--muted);
-      letter-spacing: 0.08em; text-transform: uppercase;
-      border-bottom: none;
-    }
-
     .preview-wave-wrap {
       line-height: 0;
       position: relative;
+      background: var(--bg);
+      border-radius: 12px;
+      margin: 36px 16px 16px;
+      border: 1px solid var(--border);
     }
 
     .preview-wave-wrap img,
     .preview-wave-wrap svg { width: 100%; display: block; }
-
-    .preview-bottom {
-      height: 60px;
-      background: var(--s3);
-      display: flex; align-items: center; justify-content: center;
-      font-family: var(--mono); font-size: 10px; color: var(--muted);
-      letter-spacing: 0.08em; text-transform: uppercase;
-    }
 
     .loading-bar {
       display: none;
@@ -405,13 +392,11 @@
 
   <!-- Live preview -->
   <div class="preview-strip">
-    <div class="preview-top">▓▓ Section Above ▓▓</div>
     <div class="preview-wave-wrap" id="preview-wrap">
       <!-- wave SVG rendered here -->
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 80" width="1200" height="80" preserveAspectRatio="none"><path d="M 0.00 40.00 C 10.00 40.00 20.00 12.33 30.00 12.33 C 40.00 12.33 50.00 40.00 60.00 40.00 C 70.00 40.00 80.00 67.67 90.00 67.67 C 100.00 67.67 110.00 40.00 120.00 40.00 C 130.00 40.00 140.00 12.33 150.00 12.33 C 160.00 12.33 170.00 40.00 180.00 40.00 C 190.00 40.00 200.00 67.67 210.00 67.67 C 220.00 67.67 230.00 40.00 240.00 40.00 C 250.00 40.00 260.00 12.33 270.00 12.33 C 280.00 12.33 290.00 40.00 300.00 40.00 C 310.00 40.00 320.00 67.67 330.00 67.67 C 340.00 67.67 350.00 40.00 360.00 40.00 C 370.00 40.00 380.00 12.33 390.00 12.33 C 400.00 12.33 410.00 40.00 420.00 40.00 C 430.00 40.00 440.00 67.67 450.00 67.67 C 460.00 67.67 470.00 40.00 480.00 40.00 C 490.00 40.00 500.00 12.33 510.00 12.33 C 520.00 12.33 530.00 40.00 540.00 40.00 C 550.00 40.00 560.00 67.67 570.00 67.67 C 580.00 67.67 590.00 40.00 600.00 40.00 C 610.00 40.00 620.00 12.33 630.00 12.33 C 640.00 12.33 650.00 40.00 660.00 40.00 C 670.00 40.00 680.00 67.67 690.00 67.67 C 700.00 67.67 710.00 40.00 720.00 40.00 C 730.00 40.00 740.00 12.33 750.00 12.33 C 760.00 12.33 770.00 40.00 780.00 40.00 C 790.00 40.00 800.00 67.67 810.00 67.67 C 820.00 67.67 830.00 40.00 840.00 40.00 C 850.00 40.00 860.00 12.33 870.00 12.33 C 880.00 12.33 890.00 40.00 900.00 40.00 C 910.00 40.00 920.00 67.67 930.00 67.67 C 940.00 67.67 950.00 40.00 960.00 40.00 C 970.00 40.00 980.00 12.33 990.00 12.33 C 1000.00 12.33 1010.00 40.00 1020.00 40.00 C 1030.00 40.00 1040.00 67.67 1050.00 67.67 C 1060.00 67.67 1070.00 40.00 1080.00 40.00 C 1090.00 40.00 1100.00 12.33 1110.00 12.33 C 1120.00 12.33 1130.00 40.00 1140.00 40.00 C 1150.00 40.00 1160.00 67.67 1170.00 67.67 C 1180.00 67.67 1190.00 40.00 1200.00 40.00 L 1200 80 L 0 80 Z" fill="#161b22" fill-opacity="1.00"/></svg>
     </div>
     <div class="loading-bar" id="loading-bar"></div>
-    <div class="preview-bottom">▓▓ Section Below ▓▓</div>
   </div>
 
   <!-- Presets -->
@@ -595,11 +580,6 @@
       const resp = await fetch(url);
       const svg = await resp.text();
       document.getElementById('preview-wrap').innerHTML = svg;
-      // Update colors of mock sections
-      const ct = document.getElementById('color_top').value;
-      const cb = document.getElementById('color_bottom').value;
-      document.querySelector('.preview-top').style.background = ct;
-      document.querySelector('.preview-bottom').style.background = cb;
     } catch(e) {}
 
     document.getElementById('loading-bar').classList.remove('active');
