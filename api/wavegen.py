@@ -162,6 +162,8 @@ def generate_wave_svg(
     gradient: bool = False,
     opacity: float = 1.0,
     mirror: bool = False,
+    animate: bool = False,
+    speed: float = 6.0,
     smooth: bool = True,
 ) -> str:
     """
@@ -173,6 +175,7 @@ def generate_wave_svg(
     frequency = min(max(frequency, 0.5), 8.0)
     layers = min(max(layers, 1), 3)
     opacity = min(max(opacity, 0.1), 1.0)
+    speed = min(max(speed, 1.0), 20.0)
 
     r1, g1, b1 = _hex_to_rgb(color_top)
     r2, g2, b2 = _hex_to_rgb(color_bottom)
@@ -253,7 +256,20 @@ def generate_wave_svg(
                 y_offset=0.5,
             )
 
-        paths_svg += f'  <path d="{path_d}" fill="{layer_color}" fill-opacity="{layer_opacity:.2f}"/>\n'
+        animation_svg = ""
+        if animate:
+            layer_duration = speed + layer_idx * 1.1
+            layer_shift = width * (0.02 + layer_idx * 0.01)
+            animation_svg = (
+                f'<animateTransform attributeName="transform" type="translate" '
+                f'values="0 0; {-layer_shift:.2f} 0; 0 0" dur="{layer_duration:.2f}s" '
+                f'repeatCount="indefinite"/>'
+            )
+
+        paths_svg += (
+            f'  <path d="{path_d}" fill="{layer_color}" fill-opacity="{layer_opacity:.2f}">'
+            f'{animation_svg}</path>\n'
+        )
 
     # Mirror layer
     if mirror:
@@ -271,7 +287,17 @@ def generate_wave_svg(
                 fill_bottom=not flip,
                 y_offset=0.5,
             )
-        paths_svg += f'  <path d="{mirror_path}" fill="{fill_color}" fill-opacity="{opacity * 0.4:.2f}"/>\n'
+        mirror_anim = ""
+        if animate:
+            mirror_anim = (
+                f'<animateTransform attributeName="transform" type="translate" '
+                f'values="0 0; {width * 0.03:.2f} 0; 0 0" dur="{speed + 1.5:.2f}s" '
+                f'repeatCount="indefinite"/>'
+            )
+        paths_svg += (
+            f'  <path d="{mirror_path}" fill="{fill_color}" fill-opacity="{opacity * 0.4:.2f}">'
+            f'{mirror_anim}</path>\n'
+        )
 
     transform = f' transform="scale(1,-1) translate(0,-{height})"' if flip else ""
 
