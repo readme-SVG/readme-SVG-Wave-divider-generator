@@ -617,16 +617,39 @@
   }
 
   // ─── Presets ─────────────────────────────────────────
-  const PRESETS = [
-    { label: 'GitHub Dark',  type:'smooth',   ct:'#0d1117', cb:'#161b22', amp:20, freq:1,   layers:1, flip:false },
-    { label: 'Ocean',        type:'smooth',   ct:'#0a1628', cb:'#0f3460', amp:30, freq:1.5, layers:2, flip:false },
-    { label: 'Sunset',       type:'bump',     ct:'#1a0a2e', cb:'#f72585', amp:25, freq:2,   layers:1, flip:false },
-    { label: 'Forest',       type:'smooth',   ct:'#0a1a0d', cb:'#1a4a22', amp:18, freq:2,   layers:2, flip:true  },
-    { label: 'Zigzag Dark',  type:'zigzag',   ct:'#0f0f0f', cb:'#222222', amp:22, freq:3,   layers:1, flip:false },
-    { label: 'Minimal',      type:'smooth',   ct:'#f0f0f0', cb:'#ffffff', amp:10, freq:0.5, layers:1, flip:false },
-    { label: 'Neon',         type:'sine',     ct:'#020010', cb:'#0d0030', amp:28, freq:2,   layers:3, flip:false },
-    { label: 'Bumpy',        type:'bump',     ct:'#111827', cb:'#1f2937', amp:30, freq:3,   layers:1, flip:false },
+  const PRESET_PALETTES = [
+    ['#0d1117', '#161b22'], ['#0a1628', '#0f3460'], ['#1a0a2e', '#f72585'],
+    ['#0a1a0d', '#1a4a22'], ['#0f0f0f', '#222222'], ['#f0f0f0', '#ffffff'],
+    ['#020010', '#0d0030'], ['#111827', '#1f2937'], ['#001219', '#005f73'],
+    ['#3c096c', '#ff6d00'], ['#14213d', '#fca311'], ['#10002b', '#240046'],
   ];
+
+  function randomBetween(min, max, step = 1) {
+    const count = Math.round((max - min) / step);
+    return min + Math.floor(Math.random() * (count + 1)) * step;
+  }
+
+  function buildRandomPresets(count = 4) {
+    const types = ['smooth', 'sine', 'bump', 'zigzag'];
+    const palettes = [...PRESET_PALETTES].sort(() => Math.random() - 0.5);
+    const presets = [];
+
+    for (let i = 0; i < count; i++) {
+      const [ct, cb] = palettes[i % palettes.length];
+      presets.push({
+        label: `Random ${i + 1}`,
+        type: types[randomBetween(0, types.length - 1)],
+        ct,
+        cb,
+        amp: randomBetween(10, 35),
+        freq: randomBetween(0.5, 3, 0.5),
+        layers: randomBetween(1, 3),
+        flip: Math.random() > 0.5,
+      });
+    }
+
+    return presets;
+  }
 
   function buildPreviewSVG(p) {
     const w = 300, h = 40;
@@ -679,7 +702,8 @@
   }
 
   const grid = document.getElementById('preset-grid');
-  PRESETS.forEach(p => {
+  const randomPresets = buildRandomPresets(4);
+  randomPresets.forEach(p => {
     const btn = document.createElement('button');
     btn.className = 'preset-btn';
     btn.innerHTML = `<div class="preset-thumb">${buildPreviewSVG(p)}</div><div class="preset-label">${p.label}</div>`;
