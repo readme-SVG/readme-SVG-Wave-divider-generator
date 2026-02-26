@@ -149,6 +149,65 @@ def _build_bump_path(
     return path
 
 
+def _build_animated_wave_values(
+    builder,
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    fill_bottom: bool,
+    base_phase: float,
+    frame_count: int = 5,
+) -> str:
+    """Build semicolon-separated animated path values for a wave-like morph."""
+    values = []
+    for frame in range(frame_count):
+        # full cycle split across N-1 steps; last frame equals first for seamless loop
+        phase = base_phase + (2 * math.pi * frame / (frame_count - 1))
+        values.append(
+            builder(
+                width,
+                height,
+                amplitude,
+                frequency,
+                phase=phase,
+                fill_bottom=fill_bottom,
+                y_offset=0.5,
+            )
+        )
+    return ";".join(values)
+
+
+def _build_animated_amplitude_values(
+    builder,
+    width: int,
+    height: int,
+    amplitude: float,
+    frequency: float,
+    fill_bottom: bool,
+    y_offset: float = 0.5,
+    frame_count: int = 5,
+    **kwargs,
+) -> str:
+    """Build animated path values by pulsating amplitude (for non-phase wave types)."""
+    values = []
+    for frame in range(frame_count):
+        phase = 2 * math.pi * frame / (frame_count - 1)
+        amp = max(1.0, amplitude * (0.72 + 0.28 * (math.sin(phase) + 1) / 2))
+        values.append(
+            builder(
+                width,
+                height,
+                amp,
+                frequency,
+                fill_bottom=fill_bottom,
+                y_offset=y_offset,
+                **kwargs,
+            )
+        )
+    return ";".join(values)
+
+
 def generate_wave_svg(
     wave_type: str = "sine",
     width: int = 1200,
@@ -162,6 +221,8 @@ def generate_wave_svg(
     gradient: bool = False,
     opacity: float = 1.0,
     mirror: bool = False,
+    animate: bool = False,
+    speed: float = 6.0,
     smooth: bool = True,
 ) -> str:
     """
@@ -173,6 +234,7 @@ def generate_wave_svg(
     frequency = min(max(frequency, 0.5), 8.0)
     layers = min(max(layers, 1), 3)
     opacity = min(max(opacity, 0.1), 1.0)
+    speed = min(max(speed, 1.0), 20.0)
 
     r1, g1, b1 = _hex_to_rgb(color_top)
     r2, g2, b2 = _hex_to_rgb(color_bottom)
@@ -253,7 +315,66 @@ def generate_wave_svg(
                 y_offset=0.5,
             )
 
-        paths_svg += f'  <path d="{path_d}" fill="{layer_color}" fill-opacity="{layer_opacity:.2f}"/>\n'
+        animation_svg = ""
+        if animate:
+            layer_duration = speed + layer_idx * 1.1
+            if wave_type in ("sine", "smooth"):
+                builder = _build_wave_path if wave_type == "sine" else _build_smooth_wave_path
+                anim_values = _build_animated_wave_values(
+                    builder,
+                    width,
+                    height,
+                    layer_amp,
+                    frequency,
+                    fill_bottom_flag,
+                    phase_offset,
+                )
+                animation_svg = (
+                    f'<animate attributeName="d" values="{anim_values}" '
+                    f'dur="{layer_duration:.2f}s" repeatCount="indefinite"/>'
+                )
+            elif wave_type == "zigzag":
+                anim_values = _build_animated_amplitude_values(
+                    _build_zigzag_path,
+                    width,
+                    height,
+                    layer_amp,
+                    frequency,
+                    fill_bottom_flag,
+                )
+                animation_svg = (
+                    f'<animate attributeName="d" values="{anim_values}" '
+                    f'dur="{layer_duration:.2f}s" repeatCount="indefinite"/>'
+                )
+            elif wave_type in ("bump", "triangle"):
+                bump_builder = _build_bump_path if wave_type == "bump" else _build_zigzag_path
+                bump_freq = frequency if wave_type == "bump" else frequency * 0.7
+                bump_kwargs = {"inverted": flip} if wave_type == "bump" else {}
+                anim_values = _build_animated_amplitude_values(
+                    bump_builder,
+                    width,
+                    height,
+                    layer_amp,
+                    bump_freq,
+                    fill_bottom_flag,
+                    **bump_kwargs,
+                )
+                animation_svg = (
+                    f'<animate attributeName="d" values="{anim_values}" '
+                    f'dur="{layer_duration:.2f}s" repeatCount="indefinite"/>'
+                )
+            else:
+                layer_shift = width * (0.02 + layer_idx * 0.01)
+                animation_svg = (
+                    f'<animateTransform attributeName="transform" type="translate" '
+                    f'values="0 0; {-layer_shift:.2f} 0; 0 0" dur="{layer_duration:.2f}s" '
+                    f'repeatCount="indefinite"/>'
+                )
+
+        paths_svg += (
+            f'  <path d="{path_d}" fill="{layer_color}" fill-opacity="{layer_opacity:.2f}">'
+            f'{animation_svg}</path>\n'
+        )
 
     # Mirror layer
     if mirror:
@@ -271,7 +392,63 @@ def generate_wave_svg(
                 fill_bottom=not flip,
                 y_offset=0.5,
             )
-        paths_svg += f'  <path d="{mirror_path}" fill="{fill_color}" fill-opacity="{opacity * 0.4:.2f}"/>\n'
+        mirror_anim = ""
+        if animate:
+            if wave_type in ("sine", "smooth"):
+                builder = _build_wave_path if wave_type == "sine" else _build_smooth_wave_path
+                mirror_values = _build_animated_wave_values(
+                    builder,
+                    width,
+                    height,
+                    amplitude,
+                    frequency,
+                    not flip,
+                    math.pi,
+                )
+                mirror_anim = (
+                    f'<animate attributeName="d" values="{mirror_values}" '
+                    f'dur="{speed + 1.5:.2f}s" repeatCount="indefinite"/>'
+                )
+            elif wave_type == "zigzag":
+                mirror_values = _build_animated_amplitude_values(
+                    _build_zigzag_path,
+                    width,
+                    height,
+                    amplitude,
+                    frequency,
+                    not flip,
+                )
+                mirror_anim = (
+                    f'<animate attributeName="d" values="{mirror_values}" '
+                    f'dur="{speed + 1.5:.2f}s" repeatCount="indefinite"/>'
+                )
+            elif wave_type in ("bump", "triangle"):
+                mirror_builder = _build_bump_path if wave_type == "bump" else _build_zigzag_path
+                mirror_freq = frequency if wave_type == "bump" else frequency * 0.7
+                mirror_kwargs = {"inverted": flip} if wave_type == "bump" else {}
+                mirror_values = _build_animated_amplitude_values(
+                    mirror_builder,
+                    width,
+                    height,
+                    amplitude,
+                    mirror_freq,
+                    not flip,
+                    **mirror_kwargs,
+                )
+                mirror_anim = (
+                    f'<animate attributeName="d" values="{mirror_values}" '
+                    f'dur="{speed + 1.5:.2f}s" repeatCount="indefinite"/>'
+                )
+            else:
+                mirror_anim = (
+                    f'<animateTransform attributeName="transform" type="translate" '
+                    f'values="0 0; {width * 0.03:.2f} 0; 0 0" dur="{speed + 1.5:.2f}s" '
+                    f'repeatCount="indefinite"/>'
+                )
+        paths_svg += (
+            f'  <path d="{mirror_path}" fill="{fill_color}" fill-opacity="{opacity * 0.4:.2f}">'
+            f'{mirror_anim}</path>\n'
+        )
 
     transform = f' transform="scale(1,-1) translate(0,-{height})"' if flip else ""
 

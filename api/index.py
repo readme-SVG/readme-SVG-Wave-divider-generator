@@ -33,6 +33,8 @@ def wave():
     gradient  = request.args.get("gradient", "false").lower() == "true"
     mirror    = request.args.get("mirror", "false").lower() == "true"
     opacity   = min(max(float(request.args.get("opacity", 1)), 0.1), 1)
+    animate   = request.args.get("animate", "false").lower() == "true"
+    speed     = min(max(float(request.args.get("speed", 6)), 1), 20)
 
     svg = generate_wave_svg(
         wave_type=wave_type,
@@ -47,6 +49,8 @@ def wave():
         gradient=gradient,
         mirror=mirror,
         opacity=opacity,
+        animate=animate,
+        speed=speed,
     )
 
     return Response(
